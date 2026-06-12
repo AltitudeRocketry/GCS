@@ -17,23 +17,24 @@ dataValues = [
     "Drogue Cont", "Drogue Deploy", "Main Cont", "Main Deploy"
 ]
 
-class MissionControl(QMainWindow):
+class MissionControl(QWidget):
     
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
 
+        self.controller = controller
         self.requestedSensors = []
         self.DevicePort = None
         self.DeviceBaud = None
         self.FilePath = None
 
-        self.setWindowTitle("Altitude Rocketry Mission Control")
-        self.resize(1200, 800)
-        self.setStyleSheet("background-color: #121212; color: white;")
+        # self.setWindowTitle("Altitude Rocketry Mission Control")
+        # self.resize(1200, 800)
+        # self.setStyleSheet("background-color: #121212; color: white;")
 
-        self.Central_Widget = QWidget()
-        self.setCentralWidget(self.Central_Widget)
-        self.MainLayout = QHBoxLayout(self.Central_Widget)
+        # self.Central_Widget = QWidget()
+        # self.setCentralWidget(self.Central_Widget)
+        self.MainLayout = QHBoxLayout(self)
 
         # --- SIDEBAR (Left) ---
         self.sidebar = QFrame()
@@ -139,18 +140,6 @@ class MissionControl(QMainWindow):
         # Add Widgets to Main Layout
         self.MainLayout.addWidget(self.sidebar)
         self.MainLayout.addWidget(self.analyzer)
-
-
-
-        
-
-
-
-
-
-
-
-
 
     def ConnectionManager(self):
         

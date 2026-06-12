@@ -1,0 +1,20 @@
+{
+
+    "MainApp":{
+    "version": "v0.1.0",
+    "repos":"sd",
+    "downloadFile":"d"
+    },
+    
+    "TestStand":{
+    "version": "v0.1.0",
+    "repos":"sd",
+    "downloadFile":"d"
+    },
+
+    "FlightComputer":{
+    "version": "v0.1.0",
+    "repos":"sd",
+    "downloadFile":"d"
+    }
+}
