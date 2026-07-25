@@ -34,8 +34,24 @@ class MissionControl(QWidget):
 
         # self.Central_Widget = QWidget()
         # self.setCentralWidget(self.Central_Widget)
-        self.MainLayout = QHBoxLayout(self)
+        self.MainLayout = QVBoxLayout(self)
 
+        header = QHBoxLayout()
+        title = QLabel("DATA ANALYZR")
+
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #00FF66; letter-spacing: 1px;")
+
+        btn_back = QPushButton("MAIN MENU")
+        if self.controller:
+            btn_back.clicked.connect(lambda: self.controller.show_main_menu())
+
+        header.addWidget(title)
+        header.addStretch()
+        header.addWidget(btn_back)
+        self.MainLayout.addLayout(header)
+        
+
+        self.ContentLayout = QHBoxLayout()
         # --- SIDEBAR (Left) ---
         self.sidebar = QFrame()
         self.sidebar.setFixedWidth(200)
@@ -138,8 +154,10 @@ class MissionControl(QWidget):
         self.analyzer = RocketDataAnalyzer()
         
         # Add Widgets to Main Layout
-        self.MainLayout.addWidget(self.sidebar)
-        self.MainLayout.addWidget(self.analyzer)
+        self.ContentLayout.addWidget(self.sidebar)
+        self.ContentLayout.addWidget(self.analyzer)
+
+        self.MainLayout.addLayout(self.ContentLayout)
 
     def ConnectionManager(self):
         

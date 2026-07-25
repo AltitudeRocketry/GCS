@@ -1,6 +1,6 @@
 import sys
 import serial.tools.list_ports
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QComboBox, QCheckBox, QDateTimeEdit, QSlider, QLabel, QMessageBox, QGridLayout
+from PyQt6.QtWidgets import QApplication,QInputDialog, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QComboBox, QCheckBox, QDateTimeEdit, QSlider, QLabel, QMessageBox, QGridLayout
 from PyQt6.QtCore import pyqtSlot, Qt, QThread
 from RocketDataAnalyzer import RocketDataAnalyzer
 from SerialReader import SerialReader
@@ -21,9 +21,6 @@ class TestStand(QWidget):
 
         self.initScreen()
         self.wsThread = None
-
-
-
 
     def initScreen(self):
         mainLayout = QVBoxLayout(self)
@@ -50,14 +47,14 @@ class TestStand(QWidget):
         grid.setContentsMargins(10, 15, 10, 15)
         
         self.lbl_sd = self.create_readout("SD CARD", "---")
+        self.lbl_loadCell = self.create_readout("Load Cell", "---")
         self.lbl_cont = self.create_readout("LAUNCH CONTINUITY", "---")
         self.lbl_thrust = self.create_readout("LIVE THRUST", "0.000 KG")
-        self.lbl_impulse = self.create_readout("TOTAL IMPULSE", "0.000 N·s")
 
         grid.addWidget(self.lbl_sd, 0, 0)
-        grid.addWidget(self.lbl_cont, 0, 1)
-        grid.addWidget(self.lbl_thrust, 0, 2)
-        grid.addWidget(self.lbl_impulse, 0, 3)
+        grid.addWidget(self.lbl_loadCell, 0, 1)
+        grid.addWidget(self.lbl_cont, 0, 2)
+        grid.addWidget(self.lbl_thrust, 0, 3)
         mainLayout.addLayout(grid)
 
         # 3. HIGH-SPEED PYQTGRAPH COMPONENT
@@ -90,6 +87,7 @@ class TestStand(QWidget):
         btn_set = QPushButton("SET")
         btn_calibrate = QPushButton("CALIBRATE")
         btn_test = QPushButton("TEST")
+        btn_measure = QPushButton("MEASURE")
         
         # Safety Critical Commands get distinct coloring
         btn_ignite = QPushButton("IGNITE")
@@ -98,17 +96,23 @@ class TestStand(QWidget):
         btn_stop = QPushButton("STOP")
         btn_stop.setStyleSheet("background-color: #4A1515; color: #FF3333; border-color: #801818;")
 
+
+        btn_set.clicked.connect(self.SetPromt)
+        btn_calibrate.clicked.connect(self.CalibratePromt)
+        btn_test.clicked.connect(self.TestPromt)
         # Hook commands up to transmit back to the ESP32 via websocket
-        btn_set.clicked.connect(lambda: self.send_command("CMD_SET"))
-        btn_calibrate.clicked.connect(lambda: self.send_command("CMD_CALIBRATE"))
-        btn_test.clicked.connect(lambda: self.send_command("CMD_TEST"))
-        btn_ignite.clicked.connect(lambda: self.send_command("CMD_IGNITE"))
-        btn_stop.clicked.connect(lambda: self.send_command("CMD_STOP"))
+        # btn_set.clicked.connect(lambda: self.send_command("CMD_SET"))
+        # btn_calibrate.clicked.connect(lambda: self.send_command("CMD_CALIBRATE"))
+        # btn_test.clicked.connect(lambda: self.send_command("CMD_TEST"))
+        btn_measure.clicked.connect(lambda: self.send_command("CMD_MEASURE:"))
+        btn_ignite.clicked.connect(lambda: self.send_command("CMD_GO:"))
+        btn_stop.clicked.connect(lambda: self.send_command("CMD_STOP:"))
 
         actions_layout.addWidget(btn_connect)
         actions_layout.addWidget(btn_set)
         actions_layout.addWidget(btn_calibrate)
         actions_layout.addWidget(btn_test)
+        actions_layout.addWidget(btn_measure)
         actions_layout.addStretch()
         actions_layout.addWidget(btn_ignite)
         actions_layout.addWidget(btn_stop)
@@ -134,6 +138,45 @@ class TestStand(QWidget):
         container.display_label = value 
         return container
 
+    def SetPromt(self):
+        """Asks the user for a tare/scale calibration factor float"""
+        val, ok = QInputDialog.getDouble(
+            self, 
+            "Set Calibration Factor", 
+            "Enter Scale Calibration Value:", 
+            value=1000.0, 
+            decimals=4
+        )
+        if ok:
+            # Transmits formatted command matching ESP32 parser: CMD_SET:1234.56
+            self.send_command(f"CMD_SET:{val}")
+
+    def CalibratePromt(self):
+        """Asks the user for the known test weight put on the load cell"""
+        weight, ok = QInputDialog.getDouble(
+            self, 
+            "Calibrate Load Cell", 
+            "Enter Known Calibration Weight (KG):", 
+            value=1.000, 
+            decimals=4
+        )
+        if ok:
+            # Transmits formatted command matching ESP32 parser: CMD_CALIBRATE:1.000
+            self.send_command(f"CMD_CALIBRATE:{weight}")
+
+    def TestPromt(self):
+        """Asks the user for the target logging filename before test run"""
+        filename, ok = QInputDialog.getText(
+            self, 
+            "Test Log Setup", 
+            "Enter SD Storage Filename (e.g., test1):", 
+            text="flight_log_1"
+        )
+        if ok and filename.strip():
+            # Transmits formatted command matching ESP32 parser: CMD_TEST:flight_log_1.csv
+            self.send_command(f"CMD_TEST:{filename.strip()}")
+
+
     def connect_websocket(self):
         if self.wsThread and self.wsThread.isRunning():
             self.wsThread.stop()
@@ -152,34 +195,38 @@ class TestStand(QWidget):
             self.lbl_ws_status.setStyleSheet("font-weight: bold; color: #FF3333;")
 
     def send_command(self, cmd):
+        """Sends payload string across WebSocket worker thread"""
         if self.wsThread and self.wsThread.isRunning():
+            print(f"Transmitting Command: {cmd}")
             self.wsThread.send_command(cmd)
+        else:
+            QMessageBox.warning(self, "Telemetry Offline", "Cannot send command: WebSocket is not linked.")
 
     def handle_incoming_telemetry(self, data):
         # Expecting structural JSON over WS from ESP32: 
         # {"time": 12.34, "thrust": 0.008, "sd": 1, "cont": 0, "impulse": 0.005}
-        
+        print(data)
         # Update Readouts
-        if 'sd' in data: self.lbl_sd.display_label.setText(str(data['sd']))
+        if 'SD' in data: self.lbl_sd.display_label.setText(str(data['SD']))
+        if 'LoadCell' in data: self.lbl_loadCell.display_label.setText(str(data['LoadCell']))
         if 'cont' in data: self.lbl_cont.display_label.setText(str(data['cont']))
         if 'thrust' in data: self.lbl_thrust.display_label.setText(f"{data['thrust']:.4f} KG")
-        if 'impulse' in data: self.lbl_impulse.display_label.setText(f"{data['impulse']:.4f} N·s")
         
         # Manage graph tracking arrays
         if 'time' in data and 'thrust' in data:
-            self.time_history.append(data['time'])
-            self.thrust_history.append(data['thrust'])
+            self.time.append(data['time'])
+            self.thrust.append(data['thrust'])
             
             # Limit trailing points to avoid rendering bog downs (keep last 300 values)
-            if len(self.time_history) > 300:
-                self.time_history.pop(0)
-                self.thrust_history.pop(0)
+            if len(self.time) > 300:
+                self.time.pop(0)
+                self.thrust.pop(0)
             
-            self.curve.setData(self.time_history, self.thrust_history)
+            self.curve.setData(self.time, self.thrust)
             
             # Manually pan viewport to stick with running timeline window frame smoothly
-            if self.time_history:
-                self.graph_widget.getPlotItem().vb.setXRange(self.time_history[0], self.time_history[-1], padding=0)
+            if self.time:
+                self.graph_widget.getPlotItem().vb.setXRange(self.time[0], self.time[-1], padding=0)
 
 
 

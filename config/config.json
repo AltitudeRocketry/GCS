@@ -1,19 +1,19 @@
 {
 
     "MainApp":{
-    "localVersion": "v0.1.0",
-    "repos":"https://raw.githubusercontent.com/AltitudeRocketry/GCS/refs/heads/main/config/config.json",
+    "localVersion": "1.0.0",
+    "repos":"https://raw.githubusercontent.com/AltitudeRocketry/GCS/refs/heads/main/version.txt",
     "downloadFile":"d"
     },
 
     "TestStand":{
-    "localVersion": "v0.1.0",
-    "repos":"sd",
+    "localVersion": "1.0.0",
+    "repos":"https://raw.githubusercontent.com/AltitudeRocketry/TestStand/refs/heads/main/version.txt",
     "downloadFile":"d"
     },
 
     "FlightComputer":{
-    "localVersion": "v0.1.0",
+    "localVersion": "0.1.0",
     "repos":"sd",
     "downloadFile":"d"
     }

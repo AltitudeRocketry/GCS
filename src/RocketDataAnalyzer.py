@@ -17,7 +17,9 @@ class RocketDataAnalyzer(QWidget):
         self.vel_display = self.create_stat_widget("VELOCITY", "0.0 m/s")
         self.accel_display = self.create_stat_widget("ACCELERATION", "0.0 m/s^2")
 
+        
         self.layout.addLayout(self.stats_layout)
+        
 
 
         self.setupPlot()
