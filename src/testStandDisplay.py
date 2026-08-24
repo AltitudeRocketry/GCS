@@ -152,17 +152,45 @@ class TestStand(QWidget):
             self.send_command(f"CMD_SET:{val}")
 
     def CalibratePromt(self):
-        """Asks the user for the known test weight put on the load cell"""
+        """Multi-step guided calibration flow using sequential dialog boxes."""
+        
+        # Step 1: Tare Prompt (Clear the scale)
+        step1 = QMessageBox.question(
+            self,
+            "Calibration - Step 1: Tare",
+            "Please remove all weight from the load cell.\n\nClick 'Yes' when the scale is empty to tare.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel
+        )
+
+        if step1 != QMessageBox.StandardButton.Yes:
+            print("Calibration Canceled")
+            return
+
+        self.send_command("CMD_CALIBRATE:START")
+
         weight, ok = QInputDialog.getDouble(
             self, 
             "Calibrate Load Cell", 
-            "Enter Known Calibration Weight (KG):", 
+            "Enter Known Calibration Weight (g):", 
             value=1.000, 
             decimals=4
         )
-        if ok:
-            # Transmits formatted command matching ESP32 parser: CMD_CALIBRATE:1.000
-            self.send_command(f"CMD_CALIBRATE:{weight}")
+        if not ok:
+            print("Calibration Canceled")
+            return
+        
+        # Step 3: Confirmation Box
+        step3 = QMessageBox.information(
+            self,
+            "Calibration - Step 3: Calibrate",
+            f"Load cell is loaded with {weight:.4f} g.\n\nClick 'OK' to calculate and save scale factor.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        )
+
+        if step3 == QMessageBox.StandardButton.Ok:
+            # Transmit the known weight value to ESP32: CMD_CALIBRATE:1.0000
+            self.send_command(f"CMD_CALIBRATE:WEIGHT_{weight:.4f}")
+            # QMessageBox.information(self, "Calibration Sent", f"Calibration payload ({weight:.4f} KG) sent to ESP32.")
 
     def TestPromt(self):
         """Asks the user for the target logging filename before test run"""
@@ -206,6 +234,9 @@ class TestStand(QWidget):
         # Expecting structural JSON over WS from ESP32: 
         # {"time": 12.34, "thrust": 0.008, "sd": 1, "cont": 0, "impulse": 0.005}
         print(data)
+
+        if 'Calibration Value' in data: 
+            QMessageBox.information(self, "Calibration Value", str(data["Calibration Value"]))
         # Update Readouts
         if 'SD' in data: self.lbl_sd.display_label.setText(str(data['SD']))
         if 'LoadCell' in data: self.lbl_loadCell.display_label.setText(str(data['LoadCell']))

@@ -1,13 +1,13 @@
 {
 
     "MainApp":{
-    "localVersion": "1.0.0",
+    "localVersion": "1.0.1",
     "repos":"https://raw.githubusercontent.com/AltitudeRocketry/GCS/refs/heads/main/version.txt",
     "downloadFile":"d"
     },
 
     "TestStand":{
-    "localVersion": "1.0.0",
+    "localVersion": "1.0.1",
     "repos":"https://raw.githubusercontent.com/AltitudeRocketry/TestStand/refs/heads/main/version.txt",
     "downloadFile":"d"
     },
