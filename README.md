@@ -9,7 +9,7 @@ Once its open there are 3 main windows: Data Analyzer, Test Stand and Notificati
 
 **Data Analyzer:**
 The purpose of this page is to download the flight logs from the flight computer and analyze it.
-To connect the flight computer, connect it via usb to your computer and click connecct board. It will open a pop up screen where you will need to select the COM port and the Baud Rate for the flight computer. 
+To connect the flight computer, connect it via usb to your computer, **ENSURE THE SWITCH IS SET UP IN THE FLASH READ MODE**and click connecct board. It will open a pop up screen where you will need to select the COM port and the Baud Rate for the flight computer. 
 After that, you need to click on the file save location button. This will open a window where you need to save a file containing all the data from the fight computer. We recommend creating a folder named Flights where you log all of your flight data
 
 After the file has been created, click connect board. 
