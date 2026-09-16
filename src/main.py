@@ -55,7 +55,6 @@ class WindowSelector(QWidget):
     
     def toggle_drawer(self):
             """Controls displaying or collapsing your custom drawer class"""
-            print("hola?")
             if self.NotificationCenter.isVisible():
                 self.NotificationCenter.hide()
             else:

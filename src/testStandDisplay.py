@@ -1,6 +1,7 @@
 import sys
 import serial.tools.list_ports
-from PyQt6.QtWidgets import QApplication,QInputDialog, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QComboBox, QCheckBox, QDateTimeEdit, QSlider, QLabel, QMessageBox, QGridLayout
+from PyQt6.QtWidgets import (QApplication,QInputDialog, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton,
+                              QFrame, QComboBox, QCheckBox, QDateTimeEdit, QSlider, QLabel, QMessageBox, QGridLayout, QButtonGroup)
 from PyQt6.QtCore import pyqtSlot, Qt, QThread
 from RocketDataAnalyzer import RocketDataAnalyzer
 from SerialReader import SerialReader
@@ -50,13 +51,16 @@ class TestStand(QWidget):
         self.lbl_loadCell = self.create_readout("Load Cell", "---")
         self.lbl_cont = self.create_readout("LAUNCH CONTINUITY", "---")
         self.lbl_thrust = self.create_readout("LIVE THRUST", "0.000 KG")
+        self.lbl_pressure = self.create_readout("LIVE PRESSURE", "0.0 PSI")
 
         grid.addWidget(self.lbl_sd, 0, 0)
         grid.addWidget(self.lbl_loadCell, 0, 1)
         grid.addWidget(self.lbl_cont, 0, 2)
         grid.addWidget(self.lbl_thrust, 0, 3)
+        grid.addWidget(self.lbl_pressure, 0, 4)
         mainLayout.addLayout(grid)
 
+        """
         # 3. HIGH-SPEED PYQTGRAPH COMPONENT
         self.graph_widget = pg.PlotWidget()
         self.graph_widget.setBackground('#181818')
@@ -75,6 +79,34 @@ class TestStand(QWidget):
             symbol='o', symbolSize=4, symbolBrush='#006622'
         )
         mainLayout.addWidget(self.graph_widget)
+        """
+
+        graph_layout = QHBoxLayout()
+
+        self.btn_combined = QPushButton("COMBINED VIEW (DUAL AXIS)")
+        self.btn_separated = QPushButton("SEPARATED PLOTS")
+        self.btn_combined.setCheckable(True)
+        self.btn_separated.setCheckable(True)
+        self.btn_combined.setChecked(True)
+
+        self.mode_group = QButtonGroup(self)
+        self.mode_group.addButton(self.btn_combined)
+        self.mode_group.addButton(self.btn_separated)
+
+        self.btn_combined.clicked.connect(self.show_combined_view)
+        self.btn_separated.clicked.connect(self.show_separated_view)
+
+        graph_layout.addWidget(self.btn_combined)
+        graph_layout.addWidget(self.btn_separated)
+        graph_layout.addStretch()
+        mainLayout.addLayout(graph_layout)
+
+        pg.setConfigOptions(antialias=True)
+        self.graph_layout = pg.GraphicsLayoutWidget()
+        self.graph_layout.setBackground('#181818')
+        mainLayout.addWidget(self.graph_layout)
+
+        self.setup_graph_views()
 
         # 4. CONTROL ACTION BUTTONS (Bottom Layout)
         actions_layout = QHBoxLayout()
@@ -117,6 +149,89 @@ class TestStand(QWidget):
         actions_layout.addWidget(btn_ignite)
         actions_layout.addWidget(btn_stop)
         mainLayout.addLayout(actions_layout)
+
+    def setup_graph_views(self):
+        """Builds both Combined (Dual-Axis) and Separated layout states."""
+        
+        # -------------------------------------------------------------
+        # 1. COMBINED VIEW (Dual Y-Axis Overlay)
+        # -------------------------------------------------------------
+        self.p_combined = self.graph_layout.addPlot(row=0, col=0, title="Thrust & Pressure vs Time")
+        self.p_combined.showGrid(x=True, y=True, alpha=0.15)
+        self.p_combined.setLabel('bottom', 'Time', units='s', color='#999999')
+        self.p_combined.setLabel('left', 'Thrust', units='kg', color='#00FF66')
+        self.p_combined.vb.enableAutoRange(axis=pg.ViewBox.XAxis, enable=False)
+
+        # Left Curve: Thrust (Neon Green)
+        self.curve_thrust_comb = self.p_combined.plot(
+            pen=pg.mkPen(color='#00FF66', width=2),
+            symbol='o', symbolSize=4, symbolBrush='#006622'
+        )
+
+        # Secondary ViewBox overlay for Pressure on Right Axis
+        self.vb_pressure = pg.ViewBox()
+        self.p_combined.scene().addItem(self.vb_pressure)
+        self.p_combined.getAxis('right').linkToView(self.vb_pressure)
+        self.vb_pressure.setXLink(self.p_combined)
+        self.p_combined.showAxis('right')
+        self.p_combined.setLabel('right', 'Pressure', units='PSI', color='#00E5FF')
+
+        # Right Curve: Pressure (Cyan)
+        self.curve_press_comb = pg.PlotCurveItem(
+            pen=pg.mkPen(color='#00E5FF', width=2),
+            symbol='t', symbolSize=4, symbolBrush='#005577'
+        )
+        self.vb_pressure.addItem(self.curve_press_comb)
+
+        # Sync geometry of overlay ViewBox on viewport resize
+        self.p_combined.getViewBox().sigResized.connect(self.update_overlay_geometry)
+
+        # -------------------------------------------------------------
+        # 2. SEPARATED VIEW (Row 1: Thrust, Row 2: Pressure)
+        # -------------------------------------------------------------
+        self.p_thrust_sep = self.graph_layout.addPlot(row=1, col=0, title="Thrust Profile")
+        self.p_thrust_sep.showGrid(x=True, y=True, alpha=0.15)
+        self.p_thrust_sep.setLabel('left', 'Thrust', units='kg', color='#00FF66')
+        self.p_thrust_sep.vb.enableAutoRange(axis=pg.ViewBox.XAxis, enable=False)
+        self.curve_thrust_sep = self.p_thrust_sep.plot(
+            pen=pg.mkPen(color='#00FF66', width=2),
+            symbol='o', symbolSize=4, symbolBrush='#006622'
+        )
+
+        self.p_press_sep = self.graph_layout.addPlot(row=2, col=0, title="Chamber Pressure Profile")
+        self.p_press_sep.showGrid(x=True, y=True, alpha=0.15)
+        self.p_press_sep.setLabel('bottom', 'Time', units='s', color='#999999')
+        self.p_press_sep.setLabel('left', 'Pressure', units='PSI', color='#00E5FF')
+        self.p_press_sep.vb.enableAutoRange(axis=pg.ViewBox.XAxis, enable=False)
+        self.curve_press_sep = self.p_press_sep.plot(
+            pen=pg.mkPen(color='#00E5FF', width=2),
+            symbol='t', symbolSize=4, symbolBrush='#005577'
+        )
+
+        # Link X axes of separated graphs for synchronized scrolling/zooming
+        self.p_press_sep.setXLink(self.p_thrust_sep)
+
+        # Default View Mode
+        self.show_combined_view()
+
+    def update_overlay_geometry(self):
+        """Keep overlay ViewBox aligned with main combined plot frame."""
+        self.vb_pressure.setGeometry(self.p_combined.getViewBox().sceneBoundingRect())
+        self.vb_pressure.linkedViewChanged(self.p_combined.getViewBox(), self.vb_pressure.XAxis)
+
+    def show_combined_view(self):
+        """Displays combined dual Y-axis plot and hides separated plots."""
+        self.p_combined.setVisible(True)
+        self.p_thrust_sep.setVisible(False)
+        self.p_press_sep.setVisible(False)
+        self.refresh_graph_data()
+
+    def show_separated_view(self):
+        """Displays stacked plots and hides combined plot."""
+        self.p_combined.setVisible(False)
+        self.p_thrust_sep.setVisible(True)
+        self.p_press_sep.setVisible(True)
+        self.refresh_graph_data()
 
     def create_readout(self, label_text, default_value):
         """Helper to create modular dashboard digital displays"""
@@ -242,24 +357,45 @@ class TestStand(QWidget):
         if 'LoadCell' in data: self.lbl_loadCell.display_label.setText(str(data['LoadCell']))
         if 'cont' in data: self.lbl_cont.display_label.setText(str(data['cont']))
         if 'thrust' in data: self.lbl_thrust.display_label.setText(f"{data['thrust']:.4f} KG")
+        if 'pressure' in data: self.lbl_pressure.display_label.setText(f"{data['pressure']:.4f} PSI")
+        
         
         # Manage graph tracking arrays
-        if 'time' in data and 'thrust' in data:
+        if 'time' in data:
             self.time.append(data['time'])
-            self.thrust.append(data['thrust'])
-            
+
+            if 'thrust' in data:
+                self.thrust.append(data['thrust'])
+
+            if 'pressure' in data:
+                self.pressure.append(data['pressure'])
             # Limit trailing points to avoid rendering bog downs (keep last 300 values)
             if len(self.time) > 300:
                 self.time.pop(0)
                 self.thrust.pop(0)
+                self.pressure.pop(0)
+
+
+            self.refresh_graph_data()
+            # self.curve.setData(self.time, self.thrust)
             
-            self.curve.setData(self.time, self.thrust)
-            
-            # Manually pan viewport to stick with running timeline window frame smoothly
-            if self.time:
-                self.graph_widget.getPlotItem().vb.setXRange(self.time[0], self.time[-1], padding=0)
+            # # Manually pan viewport to stick with running timeline window frame smoothly
+            # if self.time:
+            #     self.graph_widget.getPlotItem().vb.setXRange(self.time[0], self.time[-1], padding=0)
 
 
+    def refresh_graph_data(self):
+            """Pushes data arrays to current visible plot curves."""
+            if not self.time:
+                return
 
+            if self.p_combined.isVisible():
+                self.curve_thrust_comb.setData(self.time, self.thrust)
+                self.curve_press_comb.setData(self.time, self.pressure)
+                self.p_combined.vb.setXRange(self.time[0], self.time[-1], padding=0)
+            else:
+                self.curve_thrust_sep.setData(self.time, self.thrust)
+                self.curve_press_sep.setData(self.time, self.pressure)
+                self.p_thrust_sep.vb.setXRange(self.time[0], self.time[-1], padding=0)
         
 

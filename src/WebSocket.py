@@ -57,11 +57,12 @@ class WebSocketClientThread(QThread):
             try:
                 msg = await ws.recv()
                 if isinstance(msg, bytes):
-                    if len(msg) == 10:
-                        thrust, currentTestTime, continuityPin, sdState = struct.unpack("<fIBB", msg)
+                    if len(msg) == 14:
+                        thrust, pressure, currentTestTime, continuityPin, sdState = struct.unpack("<ffIBB", msg)
 
                         data = {
                             "thrust": thrust,
+                            'pressure': pressure,
                             "time": currentTestTime,
                             "cont": continuityPin,
                             "SD": sdState

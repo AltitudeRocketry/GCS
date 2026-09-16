@@ -1,15 +1,15 @@
 {
 
-    "MainApp":{
-    "localVersion": "1.0.1",
+    "GCS":{
+    "localVersion": "1.1.0",
     "repos":"https://raw.githubusercontent.com/AltitudeRocketry/GCS/refs/heads/main/version.txt",
-    "downloadFile":"d"
+    "downloadFile":"GroundStation.exe"
     },
 
     "TestStand":{
     "localVersion": "1.0.1",
     "repos":"https://raw.githubusercontent.com/AltitudeRocketry/TestStand/refs/heads/main/version.txt",
-    "downloadFile":"d"
+    "downloadFile":"TestStand.exe"
     },
 
     "FlightComputer":{
